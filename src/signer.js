@@ -262,14 +262,24 @@ function getCanonicalUri(url) {
   var parser = document.createElement('a');
   parser.href = url;
   var uri = parser.pathname;
-  if (uri.length === 0)
-	  uri = '/';
-  else if (uri.substr(0,1) !== '/')
-	  uri = '/' + uri;
-  
-  // aws wants asterisk encoded
-  uri = uri.replace(/\*/g, '%2A');
-  return uri;
+
+  // Credit: http://stackoverflow.com/a/14780463/602136
+  var stack = [],
+      parts = uri.split('/');
+  for (var i=0; i<parts.length; i++) {
+    if (parts[i] === '.' || parts[i].length === 0)
+      continue;
+    if (parts[i] === '..')
+      stack.pop();
+    else {
+      var normalized = encodeURIComponent(decodeURIComponent(parts[i]));
+      // aws wants asterisk encoded
+      normalized = normalized.replace(/\*/g, '%2A');
+      stack.push(normalized);
+    }
+
+  }
+  return '/' + stack.join('/');
 }
 function getCanonicalQueryString(url) {
   var parser = document.createElement('a');
@@ -279,6 +289,8 @@ function getCanonicalQueryString(url) {
   for (var i=0; i<params.length; i++) {
 	  if (params[i].substr(0,1) === '?')
         params[i] = params[i].substr(1, params[i].length-1);
+    if (params[i].length > 0 && params[i].indexOf('=') < 0)
+      params[i] = params[i] + '=';
   }
 
   var sortedParams = params.sort();
@@ -288,6 +300,7 @@ function getCanonicalQueryString(url) {
 function getCanonicalHeaders(headers) {
   var aggregatedHeaders = new Array();
   for (var i=0; i<headers.length; i++) {
+	headers[i].value = headers[i].value.trim().replace(/  +/g, ' ');
 	var name = headers[i].name.toLowerCase();
 	
 	if (name.indexOf('x-devtools-') > -1)
@@ -296,7 +309,7 @@ function getCanonicalHeaders(headers) {
 	var headerfound = false;
 	for (var x=0; x<aggregatedHeaders.length; x++) {
 	  if (aggregatedHeaders[x].substr(0,name.length) === name) {
-	    aggregatedHeaders[x] += headers[i].value.trim();
+	    aggregatedHeaders[x] += headers[i].value;
 		headerfound=true;
 	    break;
 	  }
