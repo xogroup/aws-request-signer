@@ -267,7 +267,7 @@ function getCanonicalUri(url) {
   var stack = [],
       parts = uri.split('/');
   for (var i=0; i<parts.length; i++) {
-    if (parts[i] === '.' || parts[i].length === 0)
+    if (parts[i] === '.' || (parts[i].length === 0 && i+1<parts.length))
       continue;
     if (parts[i] === '..')
       stack.pop();
